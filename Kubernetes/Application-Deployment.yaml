@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: laravel
+  namespace: laravel
+  labels:
+    app: laravel
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: laravel
+  template:
+    metadata:
+      labels:
+        app: laravel
+    spec:
+      volumes:
+        # Create the shared files volume to be used in both pods
+        - name: shared-files
+          emptyDir: {}
+
+        # Add the ConfigMap we declared above as a volume for the pod
+        - name: nginx-config-volume
+          configMap:
+            name: nginx-config
+        - name: public
+          persistentVolumeClaim:
+            claimName: laravel-pvc-public
+        - name: logs
+          persistentVolumeClaim:
+            claimName: laravel-pvc-logs
+        - name: laravel-laravel-env
+          configMap:
+            name: laravel-env
+      containers:
+        - image: registry.payrad.org/stage/laravel:${tag}
+          imagePullPolicy: Always
+          name: laravel
+          volumeMounts:
+            - name: shared-files
+              mountPath: /var/www/html
+            - name: laravel-laravel-env
+              mountPath: /server/http/public/.env
+              subPath: .env
+            - name: public
+              mountPath: /var/www/html/storage/app/public/
+            - name: logs
+              mountPath: /var/www/html/storage/logs
+          # After the container has started, copy the PHP files from this
+          # container's local filesystem to the shared volume, which is
+          # mounted at /var/www/html. and fix file and directory permissions 
+          lifecycle:
+            postStart:
+              exec:
+                command: ["/bin/sh", "-c", "cp -r /server/http/public/. /var/www/html && fix-permission "]
+
+        - image: nginx
+          name: nginx
+          volumeMounts:
+            - name: shared-files
+              mountPath: /var/www/html
+            - name: nginx-config-volume
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx.conf
+#      imagePullSecrets:
+#        - name: yourprivateregsitry
+

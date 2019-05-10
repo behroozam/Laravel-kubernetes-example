@@ -1,0 +1,2 @@
+#!/bin/sh
+find /var/www/html -exec chown -R nobody:www-data {} \; && find /var/www/html  -type f -exec chmod 664 {} \; && find /var/www/html -type d -exec chmod 775 {} \;
