@@ -34,7 +34,7 @@ spec:
           configMap:
             name: laravel-env
       containers:
-        - image: registry.payrad.org/stage/laravel:${tag}
+        - image: YouUserName/laravel
           imagePullPolicy: Always
           name: laravel
           volumeMounts:
