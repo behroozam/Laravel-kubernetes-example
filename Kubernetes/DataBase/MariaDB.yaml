@@ -1,0 +1,106 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: laravel-mariadb
+  namespace: laravel
+spec:
+  progressDeadlineSeconds: 600
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: laravel
+      tier: mariadb
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: laravel
+        tier: mariadb
+    spec:
+      containers:
+      - env:
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: password
+              name: laravel-mariadb-pass
+        - name: MYSQL_DATABASE
+          value: laravel
+        image: mariadb
+        imagePullPolicy: Always
+        name: mariadb
+        ports:
+        - containerPort: 3306
+          name: mariadb
+          protocol: TCP
+        resources: {}
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /var/lib/mysql
+          name: c-p-s
+      dnsPolicy: ClusterFirst
+      nodeSelector:
+        database: "true"
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - name: c-p-s
+        persistentVolumeClaim:
+          claimName: laravel-mariadb-pv-claim
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: laravel-mariadb-pv-volume
+  namespace: laravel
+spec:
+  accessModes:
+  - ReadWriteOnce
+  capacity:
+    storage: 20Gi
+  claimRef:
+    apiVersion: v1
+    kind: PersistentVolumeClaim
+    name: laravel-mariadb-pv-claim
+    namespace: laravel
+  hostPath:
+    path: /k8s/database/laravel
+    type: ""
+  persistentVolumeReclaimPolicy: Retain
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: laravel-mariadb-pv-claim
+  namespace: laravel
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
+  volumeName: laravel-mariadb-pv-volume
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: laravel
+  name: laravel-mariadb
+  namespace: laravel
+spec:
+  ports:
+  - port: 3306
+    protocol: TCP
+    targetPort: 3306
+  selector:
+    app: laravel
+    tier: mariadb
+  sessionAffinity: None
+  type: ClusterIP
